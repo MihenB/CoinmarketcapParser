@@ -31,3 +31,5 @@ params = {
 }
 
 url = 'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing'
+
+token = ''
