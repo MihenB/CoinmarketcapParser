@@ -5,23 +5,14 @@ from config import url, headers, params
 import openpyxl
 from aiohttp import ClientSession
 
-wb = None
-ws = None
-sheet = None
-titles = (
-    'name',
-    'coefficient'
-)
 
-
-def create_excel_sheet():
-    global wb, sheet, ws
-    wb = openpyxl.Workbook()
-    sheet = wb['Sheet']
-    ws = wb.active
+def create_excel_sheet(titles: tuple):
+    _wb = openpyxl.Workbook()
+    _sheet = _wb['Sheet']
     row = 1
     for pos, title in enumerate(titles, start=1):
-        sheet.cell(row=row, column=pos).value = title
+        _sheet.cell(row=row, column=pos).value = title
+    return _wb, _sheet
 
 
 async def get_last_item(session: ClientSession):
@@ -32,7 +23,7 @@ async def get_last_item(session: ClientSession):
     return int(json.loads(await response.text())['data']['totalCount'])
 
 
-async def request_to_data(start: int, session: ClientSession):
+async def request_to_data(start: int, session: ClientSession, _sheet):
     params_copy = params.copy()
     params_copy.update(start=start)
     response = await session.get(
@@ -50,7 +41,8 @@ async def request_to_data(start: int, session: ClientSession):
         coefficient = get_coefficient(rank, price, ath, atl)
         write_to_excel(
             (name, coefficient),
-            rank + 1
+            rank + 1,
+            _sheet
         )
 
 
@@ -58,10 +50,9 @@ def get_coefficient(rank, price, ath, atl):
     return (ath * atl / price ** 2) / rank if price != 0 else 'PRICE EQUALS ZERO'
 
 
-def write_to_excel(vals, row):
-    global sheet
+def write_to_excel(vals, row, _sheet):
     for i, rec in enumerate(vals, start=1):
-        sheet.cell(row=row, column=i).value = rec
+        _sheet.cell(row=row, column=i).value = rec
 
 
 def exec_time_decorator(func):
@@ -74,23 +65,35 @@ def exec_time_decorator(func):
     return wrapper
 
 
+def format_col_width(sheet):
+    import string
+    for letter in string.ascii_uppercase[:2]:
+        sheet.column_dimensions[letter].width = 40
+
+
 @exec_time_decorator
 async def get_data() -> str:
-    global wb
+    titles = (
+        'name',
+        'coefficient'
+    )
+
     file_name = f'{datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S")}_coinmarketcap.xlsx'
 
-    create_excel_sheet()
+    wb, ws = create_excel_sheet(titles=titles)
 
     async with ClientSession() as session:
         last_item_num = await get_last_item(session)
         step = int(params['limit'])
         tasks = [
-            asyncio.create_task(request_to_data(i, session)) for i in range(1, last_item_num, step)
+            asyncio.create_task(request_to_data(i, session, ws)) for i in range(1, last_item_num, step)
         ]
         await asyncio.gather(*tasks)
 
     ws.auto_filter.ref = f'A1:B{last_item_num + 1}'
     ws.auto_filter.add_sort_condition(f'B2:B{last_item_num + 1}')
+
+    format_col_width(sheet=ws)
 
     wb.save(filename=file_name)
 
