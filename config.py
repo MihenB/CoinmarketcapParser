@@ -32,4 +32,4 @@ params = {
 
 url = 'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing'
 
-token = ''
+token = '5456637413:AAF2rZuG9EmPhUYAeBJNtRDNr6ID0G8qtD8'

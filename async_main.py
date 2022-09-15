@@ -77,11 +77,8 @@ async def get_data() -> str:
         'name',
         'coefficient'
     )
-
     file_name = f'{datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S")}_coinmarketcap.xlsx'
-
     wb, ws = create_excel_sheet(titles=titles)
-
     async with ClientSession() as session:
         last_item_num = await get_last_item(session)
         step = int(params['limit'])
@@ -89,14 +86,10 @@ async def get_data() -> str:
             asyncio.create_task(request_to_data(i, session, ws)) for i in range(1, last_item_num, step)
         ]
         await asyncio.gather(*tasks)
-
     ws.auto_filter.ref = f'A1:B{last_item_num + 1}'
     ws.auto_filter.add_sort_condition(f'B2:B{last_item_num + 1}')
-
     format_col_width(sheet=ws)
-
     wb.save(filename=file_name)
-
     return file_name
 
 
